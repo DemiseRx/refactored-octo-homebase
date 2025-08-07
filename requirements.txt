@@ -1,0 +1,5 @@
+PySide6
+python-docx
+PyInstaller
+pydub
+requests
