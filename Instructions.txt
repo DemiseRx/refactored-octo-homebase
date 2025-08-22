@@ -1,0 +1,214 @@
+Audiobook Generator
+This repository contains a standalone application for converting written
+books into high‑quality audiobooks using a combination of a local
+Large Language Model (LLM) and an advanced text‑to‑speech (TTS)
+engine. The program runs entirely on a Windows PC and does not
+require an internet connection once all models are downloaded. It
+leverages LM Studio’s OpenAI‑compatible API for parsing the book into
+a structured script and the Higgs Audio V2 model for expressive,
+multi‑speaker audio synthesis.
+lmstudio.ai
+boson.ai
+
+Features
+Document Import: Accepts plain text files (.txt) and Microsoft
+Word documents (.docx). The file is parsed into chapters using a
+simple heading detection heuristic.
+
+Local LLM Parsing: Sends each chapter to a model running in LM
+Studio via the /v1/chat/completions endpoint. You can reuse
+existing OpenAI clients by pointing the base_url to
+http://localhost:1234/v1 
+lmstudio.ai
+. The model outputs a script in the
+format Speaker: utterance with narrative text labelled
+Narrator.
+
+Voice Mapping: Automatically extracts a list of unique
+speaker names from the script. You can attach a reference audio
+snippet to each name, and these mappings are saved in a JSON file so
+that characters keep consistent voices across different books. Higgs
+Audio supports voice cloning and multi‑speaker dialogue generation
+using optional reference clips
+aimodels.fyi
+.
+
+Chunked Audio Synthesis: Long chapters are split at speaker or
+sentence boundaries before synthesis. Splitting at natural
+boundaries helps maintain fluid prosody and avoids the choppy
+output that results from breaking sentences mid‑stream
+developers.deepgram.com
+.
+
+Disk Space Check: Before writing audio files, the program
+verifies that at least 2 GB of free space is available in the chosen
+output folder.
+
+User‑Friendly GUI: A PySide6 interface provides file and folder
+pickers, model selection, a table for assigning voice samples, a
+progress bar and log messages.
+
+Requirements
+Python 3.8 or later. You can download Python from
+python.org.
+
+LM Studio version 0.3.6 or newer. LM Studio is an offline
+desktop application that can host open‑source LLMs and expose
+them through an OpenAI‑compatible API
+lmstudio.ai
+.
+
+Higgs Audio V2 model files. Boson AI has open‑sourced this
+expressive, multi‑speaker audio model
+boson.ai
+. The base
+model runs on an NVIDIA GPU and requires significant video memory
+(at least a 4090 for the 3B model)
+boson.ai
+.
+
+At least 16 GB of system RAM and sufficient disk space (audio
+files can be large; ensure at least 2 GB free in your output
+directory).
+
+Installation
+1. Install Python
+Download and install Python 3.8 or later from
+https://www.python.org/downloads. During installation on Windows,
+make sure to check “Add Python to PATH”.
+
+2. Create a virtual environment (optional but recommended)
+Open a terminal (PowerShell or Command Prompt) and run:
+
+bash
+Copy
+Edit
+python -m venv env
+env\Scripts\activate
+This creates an isolated environment for Python packages. You can
+deactivate it later with deactivate.
+
+3. Install Python dependencies
+Navigate to the repository folder and install the requirements:
+
+bash
+Copy
+Edit
+pip install -r requirements.txt
+This installs PySide6 for the GUI, python‑docx for reading Word files,
+requests for HTTP requests, soundfile/numpy for audio
+processing, and other dependencies.
+
+4. Install and configure LM Studio
+Download LM Studio from https://lmstudio.ai and install it on your
+system.
+
+Start LM Studio and load a suitable model (e.g. Qwen‑7B or
+Vicuna‑13B chat model). Larger models provide better parsing but
+require more memory. Use the model manager in LM Studio to
+download and load the model you prefer. You may need to
+quantize the model to 4‑bit to fit within 16 GB of VRAM.
+
+Enable the API server: open the Developer tab in LM Studio and
+start the server, or run the command below in a terminal (requires
+the lms CLI) to start the REST API on port 1234
+lmstudio.ai
+:
+
+bash
+Copy
+Edit
+lms server start
+LM Studio exposes an OpenAI‑like API, so existing OpenAI clients can
+be pointed at http://localhost:1234/v1 
+lmstudio.ai
+ without any other
+changes. Ensure the server is running before launching the
+audiobook generator.
+
+5. Download and prepare Higgs Audio V2
+Higgs Audio V2 is an open‑source audio foundation model capable of
+expressive multi‑speaker speech and voice cloning
+boson.ai
+aimodels.fyi
+. To
+use it:
+
+Clone the Boson AI Higgs GitHub repository or download the model from the Hugging Face hub.
+
+Follow the repository instructions to install the Python
+dependencies and convert the model into a format appropriate for
+local inference.
+
+The base model runs at 24 kHz and supports multiple speakers
+boson.ai
+aimodels.fyi
+. Note
+that the 3B variant requires at least an RTX 4090 for real‑time
+inference
+boson.ai
+.
+
+Modify the TTSGenerator class in audiobook_generator.py to call the Higgs
+API or Python functions instead of using the provided stub.
+
+6. Run the application
+After installing dependencies and starting LM Studio, run the
+audiobook generator from the repository root:
+
+bash
+Copy
+Edit
+python audiobook_generator.py
+The main window will open. Click “Browse…” to choose a text or
+Word document, and “Select Folder…” to set the output directory.
+Choose your loaded LLM from the Model dropdown. Once you start
+generation, the program will parse each chapter with the LLM and then
+invoke the TTS engine to produce a .wav file for every chapter.
+
+7. Assign voice samples (optional)
+When a book is parsed, the program lists the names of all speakers.
+Double‑click a speaker row to assign a reference audio clip for that
+character. Higgs Audio V2 will then clone that voice when reading
+dialogue
+aimodels.fyi
+. Assigned voices persist in voices.json, so
+future books will reuse the same voices automatically.
+
+Notes on hardware
+For smooth operation, ensure you have enough GPU memory to load both
+the selected LLM and the Higgs TTS model. Running both models
+simultaneously may exhaust GPU memory; consider running the parsing
+stage first and the TTS stage afterward.
+
+The base Higgs model uses 24 kHz sampling for high fidelity
+boson.ai
+ and
+may produce large files. An hour of mono 24 kHz WAV audio can take
+around 350 MB; plan your disk space accordingly.
+
+To reduce memory usage, the script synthesises audio in smaller
+chunks at sentence or speaker boundaries. Avoid splitting
+sentences mid‑way to maintain natural prosody
+developers.deepgram.com
+.
+
+Troubleshooting
+LM Studio cannot connect: verify that lms server start is
+running and that your firewall allows connections on port 1234. Also
+ensure you set the base_url to http://localhost:1234/v1 in the
+code or environment.
+
+“Not enough disk space” error: The program requires at least
+2 GB of free space in the output directory. Free up space or
+select another directory.
+
+Silence instead of speech: The provided TTSGenerator contains
+a placeholder synthesis function. Replace it with a call to your
+local Higgs Audio installation as described above.
+
+License
+This project is released under the MIT License. Please review
+LICENSE for details. Note that LM Studio, the selected LLM models
+and the Higgs Audio models each carry their own licenses; consult
+their respective sources for usage terms.
