@@ -115,7 +115,6 @@ def try_import(modname: str):
         return None, exc
 import json
 import os
-import re
 import shutil
 import sys
 import threading
@@ -421,6 +420,62 @@ class LMClient:
         self.api_key = os.environ.get("LMSTUDIO_API_KEY", "lm-studio")
         self.model_name = model_name
 
+    def _clean_llm_output(self, content: str, has_markers: bool) -> str:
+        """Clean the raw output from the LLM to extract the script.
+
+        This function performs several cleaning steps:
+        1. Removes common 'thinking' blocks like <think> or <scratchpad>.
+        2. If `has_markers` is True, it extracts content between [START_CHUNK] and [END_CHUNK].
+        3. If `has_markers` is False, it finds the first valid script line (e.g., "Narrator: ...") and discards any preamble.
+        4. Trims whitespace and removes empty lines from the start and end of the script.
+        """
+        # 1. Remove 'thinking' blocks.
+        content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL)
+        content = re.sub(r"<scratchpad>.*?</scratchpad>", "", content, flags=re.DOTALL)
+
+        lines = content.splitlines()
+        script_lines: List[str] = []
+
+        if has_markers:
+            try:
+                # Find start and end markers
+                start_idx = -1
+                end_idx = -1
+                for i, line in enumerate(lines):
+                    if "[START_CHUNK]" in line:
+                        start_idx = i
+                    if "[END_CHUNK]" in line:
+                        end_idx = i
+                        break
+                if start_idx != -1 and end_idx != -1:
+                    script_lines = lines[start_idx + 1 : end_idx]
+                else:
+                    # Fallback if markers are not found as expected
+                    script_lines = lines
+            except ValueError:
+                script_lines = lines
+        else:
+            # Find the first line that looks like a script line and discard the preamble
+            first_script_line_idx = -1
+            for i, line in enumerate(lines):
+                # A script line is expected to be "Speaker: utterance"
+                if re.match(r"^\s*[\w\s]+:", line):
+                    first_script_line_idx = i
+                    break
+            if first_script_line_idx != -1:
+                script_lines = lines[first_script_line_idx:]
+            else:
+                script_lines = [] # No script-like lines found
+
+        # Clean up the extracted lines
+        # Remove leading/trailing blank lines
+        while script_lines and not script_lines[0].strip():
+            script_lines.pop(0)
+        while script_lines and not script_lines[-1].strip():
+            script_lines.pop()
+
+        return "\n".join(l.strip() for l in script_lines)
+
     def parse_script(self, chapter_text: str) -> str:
         """Return a structured script for the given chapter.  The script is
         returned as a single string with each line prefixed by ``Speaker:``.
@@ -452,13 +507,7 @@ class LMClient:
             raise RuntimeError(f"Failed to query LM Studio: {exc}") from exc
         data = response.json()
         content = data["choices"][0]["message"]["content"]
-        # Remove think block if present
-        try:
-            import re
-            content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL)
-        except Exception:
-            pass
-        return content
+        return self._clean_llm_output(content, has_markers=False)
 
     def parse_paragraph(self, chapter_text: str, paragraph_text: str) -> str:
         """Return a structured script for a target paragraph within a chapter.
@@ -511,30 +560,7 @@ class LMClient:
             raise RuntimeError(f"Failed to query LM Studio: {exc}") from exc
         data = response.json()
         content = data["choices"][0]["message"]["content"]
-        # Remove any <think>...</think> block from the model output.  The
-        # thinking models may include a reflective section wrapped in
-        # <think> tags that should not be part of the final script.  Use a
-        # non‑greedy regex to strip this section if present.
-        try:
-            import re
-            content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL)
-        except Exception:
-            pass
-        # Strip markers and return only the script lines
-        lines = [line.strip() for line in content.splitlines()]
-        # Remove empty lines at start and end
-        while lines and not lines[0]:
-            lines = lines[1:]
-        while lines and not lines[-1]:
-            lines = lines[:-1]
-        # Remove markers if present
-        if lines and lines[0].startswith("[START_CHUNK]"):
-            lines = lines[1:]
-        if lines and lines and lines[-1].startswith("[END_CHUNK]"):
-            lines = lines[:-1]
-        # Return the remaining lines joined by newline.  If no script lines
-        # remain (empty paragraph), return an empty string.
-        return "\n".join(lines)
+        return self._clean_llm_output(content, has_markers=True)
 
     @staticmethod
     def extract_speakers(script: str) -> List[str]:
