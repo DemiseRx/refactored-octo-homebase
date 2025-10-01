@@ -171,35 +171,51 @@
       updateStatus();
     }
 
-    // Initiate handshake with the content script to load the scraped data.
-    withActiveTab(tab => {
-      // Send the initialize message and add a response handler to render the UI.
-      chrome.tabs.sendMessage(tab.id, { type: 'ids:initialize' }, (response) => {
-        const waitScreen = document.getElementById('wait');
-        const contentScreen = document.getElementById('content');
-        const errorDiv = document.getElementById('noResponseErr');
+    // Initiate a resilient handshake with the content script to load scraped data.
+    // This will retry several times to account for slow-loading pages.
+    function initiateHandshakeWithRetry(attempts = 0) {
+      const MAX_ATTEMPTS = 5;
+      const RETRY_DELAY_MS = 250;
 
-        if (chrome.runtime.lastError) {
-          console.warn('[IDS][popup] Initialize error:', chrome.runtime.lastError.message);
-          if (errorDiv) {
-            errorDiv.textContent = "The content script is not available. Please reload the page and try again.";
-            errorDiv.style.display = 'block';
+      withActiveTab(tab => {
+        chrome.tabs.sendMessage(tab.id, { type: 'ids:initialize' }, (response) => {
+          const waitScreen = document.getElementById('wait');
+          const contentScreen = document.getElementById('content');
+          const errorDiv = document.getElementById('noResponseErr');
+
+          // If an error occurs, it's likely the content script isn't ready.
+          if (chrome.runtime.lastError) {
+            if (attempts < MAX_ATTEMPTS) {
+              // If we haven't maxed out retries, wait and try again.
+              setTimeout(() => initiateHandshakeWithRetry(attempts + 1), RETRY_DELAY_MS);
+            } else {
+              // If we've exhausted all retries, show a final error message.
+              console.error('[IDS][popup] Handshake failed after multiple retries:', chrome.runtime.lastError.message);
+              if (errorDiv) {
+                errorDiv.textContent = "Could not connect to the page. Please reload the page and try again.";
+                errorDiv.style.display = 'block';
+              }
+            }
+            return;
           }
-          return;
-        }
 
-        // Hide loading spinner and show the main content.
-        if (waitScreen) waitScreen.style.display = 'none';
-        if (contentScreen) contentScreen.style.display = 'block';
+          // If the handshake is successful:
+          // Hide loading spinner and show the main content.
+          if (waitScreen) waitScreen.style.display = 'none';
+          if (contentScreen) contentScreen.style.display = 'block';
 
-        // Load the scraped data into the Handsontable grid.
-        if (hot && response && response.data) {
-          hot.loadData(response.data);
-        } else if (hot) {
-          // If no data is found, display an empty grid.
-          hot.loadData([[]]);
-        }
+          // Load the scraped data into the Handsontable grid.
+          if (hot && response && response.data) {
+            hot.loadData(response.data);
+          } else if (hot) {
+            // If no data is found, display an empty grid.
+            hot.loadData([[]]);
+          }
+        });
       });
-    });
+    }
+
+    // Start the handshake process.
+    initiateHandshakeWithRetry();
   });
 })();
