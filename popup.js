@@ -190,7 +190,7 @@
               setTimeout(() => initiateHandshakeWithRetry(attempts + 1), RETRY_DELAY_MS);
             } else {
               // If we've exhausted all retries, show a final error message.
-              console.error('[IDS][popup] Handshake failed after multiple retries:', chrome.runtime.lastError.message);
+              console.error('[IDS] Handshake failed after multiple retries:', chrome.runtime.lastError.message);
               if (errorDiv) {
                 errorDiv.textContent = "Could not connect to the page. Please reload the page and try again.";
                 errorDiv.style.display = 'block';

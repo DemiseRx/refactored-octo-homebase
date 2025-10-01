@@ -11,6 +11,12 @@ chrome.action.onClicked.addListener(handleActionClick);
  * @param {chrome.tabs.Tab} tab The tab that was active when the icon was clicked.
  */
 async function handleActionClick(tab) {
+  // Check if the URL is accessible by the extension.
+  if (tab.url.startsWith('chrome://') || tab.url.startsWith('https://chrome.google.com')) {
+    console.error(`[IDS] Cannot inject scripts into restricted URL: ${tab.url}.`);
+    return;
+  }
+
   try {
     // First, inject the necessary CSS into the active tab.
     await chrome.scripting.insertCSS({
@@ -29,7 +35,6 @@ async function handleActionClick(tab) {
     });
 
     // Only after the scripts have been successfully injected, create the popup window.
-    // This guarantees that the content script is ready to receive messages.
     const popupUrl = chrome.runtime.getURL('popup.html');
     const targetUrl = `${popupUrl}?tabid=${encodeURIComponent(tab.id)}&url=${encodeURIComponent(tab.url)}`;
 
@@ -40,7 +45,6 @@ async function handleActionClick(tab) {
       height: 650,
     });
   } catch (err) {
-    console.error(`[IDS] Failed to inject scripts or create popup: ${err}`);
-    // Optionally, notify the user that something went wrong.
+    console.error(`[IDS] An error occurred during injection or popup creation: ${err}`);
   }
 }

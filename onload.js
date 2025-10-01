@@ -336,3 +336,4 @@
     // This is important for keeping the message channel open.
     return true;
   });
+})();
