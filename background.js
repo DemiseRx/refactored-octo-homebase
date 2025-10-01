@@ -5,20 +5,42 @@
 chrome.action.onClicked.addListener(handleActionClick);
 
 /**
- * Handles the click event on the extension's icon.
+ * Handles the click event on the extension's icon. This function now uses
+ * programmatic injection to ensure content scripts are loaded before the popup opens.
  *
  * @param {chrome.tabs.Tab} tab The tab that was active when the icon was clicked.
  */
-function handleActionClick(tab) {
-  // When the icon is clicked, create a new popup window.
-  // We pass the active tab's ID and URL to the popup so it knows which page to scrape.
-  const popupUrl = chrome.runtime.getURL('popup.html');
-  const targetUrl = `${popupUrl}?tabid=${encodeURIComponent(tab.id)}&url=${encodeURIComponent(tab.url)}`;
+async function handleActionClick(tab) {
+  try {
+    // First, inject the necessary CSS into the active tab.
+    await chrome.scripting.insertCSS({
+      target: { tabId: tab.id },
+      files: ['onload.css'],
+    });
 
-  chrome.windows.create({
-    url: targetUrl,
-    type: 'popup',
-    width: 720,
-    height: 650,
-  });
+    // Then, inject the JavaScript files in the correct order.
+    await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      files: [
+        'js/jquery-3.1.1.min.js',
+        'js/sha256.min.js',
+        'onload.js'
+      ],
+    });
+
+    // Only after the scripts have been successfully injected, create the popup window.
+    // This guarantees that the content script is ready to receive messages.
+    const popupUrl = chrome.runtime.getURL('popup.html');
+    const targetUrl = `${popupUrl}?tabid=${encodeURIComponent(tab.id)}&url=${encodeURIComponent(tab.url)}`;
+
+    await chrome.windows.create({
+      url: targetUrl,
+      type: 'popup',
+      width: 720,
+      height: 650,
+    });
+  } catch (err) {
+    console.error(`[IDS] Failed to inject scripts or create popup: ${err}`);
+    // Optionally, notify the user that something went wrong.
+  }
 }
