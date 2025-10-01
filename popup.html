@@ -10,12 +10,11 @@
   <body>
 	  <div id="wait">
           <h1 id="waitHeader">Please wait...</h1>
-          <div id="noResponseErr" class="alert alert-danger"></div>
+          <div id="noResponseErr" class="alert alert-danger" style="display: none;"></div>
           <img src="webrobots_logo.png" id="wait-spider"/>
       </div>
-      <div id="content">
+      <div id="content" style="display: none;">
           <div class="col-xs-5">
-              <!-- NEW: Search for data field -->
               <div id="ids-search-wrap" class="form-group" style="margin-bottom:10px;">
                 <label for="ids-search" style="font-weight:600;">Search for data</label>
                 <input id="ids-search"
@@ -28,7 +27,6 @@
               </div>
               <button type="button" class="btn btn-default btn-block" id='try-another-table-btn'>Try another table</button>
               <button type="button" class="btn btn-primary btn-block" id='nextButton'>Locate "Next" button</button>
-
               <button type="button" class="btn btn-primary btn-block" id='startScraping'>Start crawling</button>
               <button type="button" class="btn btn-default btn-block" id='stopScraping'>Stop crawling</button>
 
@@ -53,7 +51,7 @@
           <div class="col-xs-3">
               <button type="button" class="btn btn-success download-button  btn-block" id='csv'><span class="glyphicon glyphicon-download-alt"></span> CSV</button><br>
               <button type="button" class="btn btn-success download-button  btn-block" id='xlsx'><span class="glyphicon glyphicon-download-alt"></span> XLSX</button>
-			  <button type="button" class="btn btn-success download-button  btn-block" id='copy'><span class="glyphicon glyphicon-copy"></span> COPY ALL</button>
+			        <button type="button" class="btn btn-success download-button  btn-block" id='copy'><span class="glyphicon glyphicon-copy"></span> COPY ALL</button>
               <button type="button" class="btn btn-success btn-block d-none" id='editPrecanned'><span class="glyphicon glyphicon-edit"></span> EDIT AGENT</button>
               <button type="button" class="btn btn-success btn-block d-none" id='createPrecanned'><span class="glyphicon glyphicon-wrench"></span> CREATE AGENT</button>
               <button type="button" class="btn btn-warning btn-block" id='resetColumns'>Reset columns</button>
@@ -63,16 +61,16 @@
               <div id="stats"></div>
           </div>
           <div class="col-xs-12" id="info">
-               <div class="alert alert-danger" id="error"></div>
-               <div class="alert alert-success" id="pleaseRate">
+               <div class="alert alert-danger" id="error" style="display: none;"></div>
+               <div class="alert alert-success" id="pleaseRate" style="display: none;">
                    If you like this extension, please rate it in chrome store:
                    <button type="button" class="btn btn-success download-button" id="rate">Rate</button>
                    <button type="button" class="btn btn-success download-button" id="rateLater">Later</button>
                </div>
-               <div class="alert alert-warning" id="inputError"></div>
-               <div class="alert alert-warning" id="finished"></div>
-               <div class="alert alert-warning" id="previewLimit"></div>
-               <div class="alert alert-info" id="instructions"></div>
+               <div class="alert alert-warning" id="inputError" style="display: none;"></div>
+               <div class="alert alert-warning" id="finished" style="display: none;"></div>
+               <div class="alert alert-warning" id="previewLimit" style="display: none;"></div>
+               <div class="alert alert-info" id="instructions" style="display: none;"></div>
           </div>
           <div class="col-xs-12">
               <div id="hot" class="hot handsontable htRowHeaders htColumnHeaders"></div>
@@ -83,9 +81,7 @@
       <script src="js/FileSaver.js"></script>
       <script src="js/bootstrap.min.js"></script>
       <script src="js/handsontable.full.min.js"></script>
-
       <script src="js/xlsx.full.min.js"></script>
-
       <script src="popup.js" type="module"></script>
   </body>
 </html>

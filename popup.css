@@ -5,9 +5,6 @@ form {
     margin-right: -5px;
     margin-left: 5px;
 }
-.btn, .alert, #content {
-    display: none;
-}
 body {
     padding-top: 15px;
 }
