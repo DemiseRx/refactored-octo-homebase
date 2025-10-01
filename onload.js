@@ -1,5 +1,4 @@
 // onload.js — Instant Data Scraper (enhanced content script)
-// ChatGPT — adds text search, candidate cycling, and target override.
 // This script is self-contained and avoids external dependencies.
 
 (() => {
@@ -8,11 +7,11 @@
   // =========================
   // State
   // =========================
-  let forcedTargetSelector = null;     // High-priority target set by search
-  let candidates = [];                 // Detected tables/lists on page
-  let candidateIndex = -1;             // Current position in candidates
-  let highlightEl = null;              // Outline/highlight overlay
-  let lastPreviewed = null;            // The last element we previewed
+  let forcedTargetSelector = null;
+  let candidates = [];
+  let candidateIndex = -1;
+  let highlightEl = null;
+  let lastPreviewed = null;
 
   // =========================
   // Utilities
@@ -68,17 +67,14 @@
 
   function nearestContainer(el) {
     if (!isElement(el)) return null;
-    // Prefer table/grid containers
     const tableish = el.closest('table, [role="table"], [role="grid"], .table, .data-table, .grid, .ag-center-cols-container');
     if (tableish) return tableish;
 
-    // Heuristic: climb to a parent whose children look like repeated rows/cards
     let p = el;
     for (let i = 0; i < 6 && p && p.parentElement; i++) {
       const parent = p.parentElement;
       const kids = Array.from(parent.children);
       const sameTag = kids.filter(k => k.tagName === p.tagName);
-      // if many siblings share structure or ARIA roles indicating row/listitem
       const rowish = kids.filter(k => {
         const role = (k.getAttribute('role') || '').toLowerCase();
         return role === 'row' || role === 'listitem';
@@ -141,7 +137,6 @@
     if (highlightEl) highlightEl.style.display = 'none';
   }
 
-  // Keep highlight aligned on resize/scroll
   window.addEventListener('scroll', () => {
     if (lastPreviewed) raf(() => highlightTarget(lastPreviewed));
   }, { passive: true });
@@ -154,43 +149,28 @@
   // =========================
   function collectCandidates() {
     const found = new Set();
-
-    // Native tables
     document.querySelectorAll('table').forEach(t => {
       if (isVisible(t) && t.rows && t.rows.length) found.add(t);
     });
-
-    // ARIA tables/grids
     document.querySelectorAll('[role="table"], [role="grid"]').forEach(t => {
       if (isVisible(t)) found.add(t);
     });
-
-    // Common data table classes and list containers
-    document.querySelectorAll(`
-      .table, .data-table, .dataTable, .grid, .ag-root, .ag-center-cols-container,
-      [role="rowgroup"], [role="list"], ul, ol
-    `).forEach(el => {
+    document.querySelectorAll('.table, .data-table, .dataTable, .grid, .ag-root, .ag-center-cols-container, [role="rowgroup"], [role="list"], ul, ol').forEach(el => {
       if (!isVisible(el)) return;
-      // Heuristic: must have repeated children or rows
       const kids = Array.from(el.children || []);
       if (kids.length >= 3) found.add(el);
     });
-
-    // Deduplicate by element
     const list = Array.from(found);
-    // Prefer larger/denser containers first
     const scored = list.map(el => {
       const rect = el.getBoundingClientRect();
       const area = Math.max(1, rect.width * rect.height);
       let rows = 0;
       if (el.tagName === 'TABLE' && el.rows) rows = el.rows.length;
       else rows = (el.querySelectorAll('tr,[role="row"],li,[role="listitem"]').length) || 0;
-
       const textLen = getText(el).length;
       const score = Math.min(1000, Math.round(area / 1000)) + Math.min(400, rows * 10) + Math.min(300, Math.round(textLen / 50));
       return { el, score };
     });
-
     scored.sort((a, b) => b.score - a.score);
     return scored.map(s => s.el);
   }
@@ -200,19 +180,15 @@
   // =========================
   function findBestNodeByText(query) {
     if (!query || !query.trim()) return null;
-
     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
     let bestNode = null;
     let maxScore = 0;
-
     while (walker.nextNode()) {
       const node = walker.currentNode;
       const parent = node.parentElement;
       if (!parent || !isVisible(parent)) continue;
-
       const text = node.nodeValue || '';
       const score = scoreTextMatch(text, query);
-
       if (score > maxScore) {
         maxScore = score;
         bestNode = parent;
@@ -228,7 +204,6 @@
     if (!el) return [];
     const data = [];
     const rows = el.querySelectorAll('tr, [role="row"], li');
-
     if (rows.length > 0) {
       rows.forEach(row => {
         const rowData = [];
@@ -239,16 +214,14 @@
           });
           data.push(rowData);
         } else {
-          // Handle lists where the row itself is the content
           const cellText = getText(row);
-          if(cellText) data.push([cellText]);
+          if (cellText) data.push([cellText]);
         }
       });
     } else {
-      // Fallback for simple containers with no clear row/cell structure
       Array.from(el.children).forEach(child => {
         const childText = getText(child);
-        if(childText) data.push([childText]);
+        if (childText) data.push([childText]);
       });
     }
     return data;
@@ -263,7 +236,6 @@
         candidates = collectCandidates();
         candidateIndex = candidates.length > 0 ? 0 : -1;
         const target = candidates[candidateIndex];
-
         if (target) {
           lastPreviewed = target;
           raf(() => {
@@ -277,7 +249,6 @@
         }
         break;
       }
-
       case 'ids:cycle-next-table': {
         if (candidates.length > 0) {
           candidateIndex = (candidateIndex + 1) % candidates.length;
@@ -294,7 +265,6 @@
         }
         break;
       }
-
       case 'ids:find-node-by-text': {
         const { query } = message;
         const foundNode = findBestNodeByText(query);
@@ -315,12 +285,10 @@
         }
         break;
       }
-
       case 'ids:set-target-selector': {
         forcedTargetSelector = message.selector;
         break;
       }
-
       case 'ids:refresh-preview': {
         const currentTarget = forcedTargetSelector ? document.querySelector(forcedTargetSelector) : (candidates[candidateIndex] || null);
         if (currentTarget) {
@@ -332,8 +300,7 @@
         break;
       }
     }
-    // Return true to indicate that the response will be sent asynchronously.
-    // This is important for keeping the message channel open.
-    return true;
+    return true; // Keep message channel open for async response
   });
+
 })();
