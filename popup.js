@@ -9,6 +9,7 @@
   // querying for the "active" tab, which can be inconsistent.
   const urlParams = new URLSearchParams(window.location.search);
   const tabId = parseInt(urlParams.get('tabid'), 10);
+  let hot; // This will hold the Handsontable instance.
 
   // -----------------------------
   // Helpers
@@ -63,6 +64,20 @@
   document.addEventListener('DOMContentLoaded', () => {
     const searchInput = document.getElementById('ids-search');
     const tryAnotherBtn = document.getElementById('try-another-table-btn');
+    const hotElement = document.getElementById('hot');
+
+    // Initialize Handsontable grid
+    if (hotElement) {
+      hot = new Handsontable(hotElement, {
+        data: [],
+        rowHeaders: true,
+        colHeaders: true,
+        contextMenu: true,
+        manualColumnResize: true,
+        manualRowResize: true,
+        colWidths: 150,
+      });
+    }
 
     // Restore previous query (if any)
     loadQuery((val) => {
@@ -155,5 +170,36 @@
       searchInput.addEventListener('change', updateStatus);
       updateStatus();
     }
+
+    // Initiate handshake with the content script to load the scraped data.
+    withActiveTab(tab => {
+      // Send the initialize message and add a response handler to render the UI.
+      chrome.tabs.sendMessage(tab.id, { type: 'ids:initialize' }, (response) => {
+        const waitScreen = document.getElementById('wait');
+        const contentScreen = document.getElementById('content');
+        const errorDiv = document.getElementById('noResponseErr');
+
+        if (chrome.runtime.lastError) {
+          console.warn('[IDS][popup] Initialize error:', chrome.runtime.lastError.message);
+          if (errorDiv) {
+            errorDiv.textContent = "The content script is not available. Please reload the page and try again.";
+            errorDiv.style.display = 'block';
+          }
+          return;
+        }
+
+        // Hide loading spinner and show the main content.
+        if (waitScreen) waitScreen.style.display = 'none';
+        if (contentScreen) contentScreen.style.display = 'block';
+
+        // Load the scraped data into the Handsontable grid.
+        if (hot && response && response.data) {
+          hot.loadData(response.data);
+        } else if (hot) {
+          // If no data is found, display an empty grid.
+          hot.loadData([[]]);
+        }
+      });
+    });
   });
 })();

@@ -201,4 +201,138 @@
   function findBestNodeByText(query) {
     if (!query || !query.trim()) return null;
 
-    // TreeWa
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
+    let bestNode = null;
+    let maxScore = 0;
+
+    while (walker.nextNode()) {
+      const node = walker.currentNode;
+      const parent = node.parentElement;
+      if (!parent || !isVisible(parent)) continue;
+
+      const text = node.nodeValue || '';
+      const score = scoreTextMatch(text, query);
+
+      if (score > maxScore) {
+        maxScore = score;
+        bestNode = parent;
+      }
+    }
+    return bestNode;
+  }
+
+  // =========================
+  // Data Scraping
+  // =========================
+  function scrapeDataFromElement(el) {
+    if (!el) return [];
+    const data = [];
+    const rows = el.querySelectorAll('tr, [role="row"], li');
+
+    if (rows.length > 0) {
+      rows.forEach(row => {
+        const rowData = [];
+        const cells = row.querySelectorAll('td, th, [role="cell"], [role="gridcell"]');
+        if (cells.length > 0) {
+          cells.forEach(cell => {
+            rowData.push(getText(cell));
+          });
+          data.push(rowData);
+        } else {
+          // Handle lists where the row itself is the content
+          const cellText = getText(row);
+          if(cellText) data.push([cellText]);
+        }
+      });
+    } else {
+      // Fallback for simple containers with no clear row/cell structure
+      Array.from(el.children).forEach(child => {
+        const childText = getText(child);
+        if(childText) data.push([childText]);
+      });
+    }
+    return data;
+  }
+
+  // =========================
+  // Message Handling
+  // =========================
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    switch (message.type) {
+      case 'ids:initialize': {
+        candidates = collectCandidates();
+        candidateIndex = candidates.length > 0 ? 0 : -1;
+        const target = candidates[candidateIndex];
+
+        if (target) {
+          lastPreviewed = target;
+          raf(() => {
+            highlightTarget(target);
+            scrollIntoViewIfNeeded(target);
+          });
+          const data = scrapeDataFromElement(target);
+          sendResponse({ data, selector: uniqueSelector(target), candidatesFound: candidates.length });
+        } else {
+          sendResponse({ data: [], selector: null, candidatesFound: 0 });
+        }
+        break;
+      }
+
+      case 'ids:cycle-next-table': {
+        if (candidates.length > 0) {
+          candidateIndex = (candidateIndex + 1) % candidates.length;
+          const target = candidates[candidateIndex];
+          lastPreviewed = target;
+          raf(() => {
+            highlightTarget(target);
+            scrollIntoViewIfNeeded(target);
+          });
+          const data = scrapeDataFromElement(target);
+          sendResponse({ data, selector: uniqueSelector(target) });
+        } else {
+          sendResponse({ data: [], selector: null });
+        }
+        break;
+      }
+
+      case 'ids:find-node-by-text': {
+        const { query } = message;
+        const foundNode = findBestNodeByText(query);
+        if (foundNode) {
+          const container = nearestContainer(foundNode);
+          lastPreviewed = container;
+          if (!candidates.includes(container)) {
+            candidates.unshift(container);
+          }
+          candidateIndex = candidates.indexOf(container);
+          raf(() => {
+            highlightTarget(container);
+            scrollIntoViewIfNeeded(container);
+          });
+          sendResponse({ selector: uniqueSelector(container) });
+        } else {
+          sendResponse({ selector: null });
+        }
+        break;
+      }
+
+      case 'ids:set-target-selector': {
+        forcedTargetSelector = message.selector;
+        break;
+      }
+
+      case 'ids:refresh-preview': {
+        const currentTarget = forcedTargetSelector ? document.querySelector(forcedTargetSelector) : (candidates[candidateIndex] || null);
+        if (currentTarget) {
+          const data = scrapeDataFromElement(currentTarget);
+          sendResponse({ data, selector: uniqueSelector(currentTarget) });
+        } else {
+          sendResponse({ data: [], selector: null });
+        }
+        break;
+      }
+    }
+    // Return true to indicate that the response will be sent asynchronously.
+    // This is important for keeping the message channel open.
+    return true;
+  });
