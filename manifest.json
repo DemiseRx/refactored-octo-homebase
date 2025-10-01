@@ -5,8 +5,7 @@
   "description": "Instant Data Scraper extracts data from web pages and exports it as Excel or CSV files",
 
   "action": {
-    "default_icon": "pokeball64.png",
-    "default_popup": "popup.html"
+    "default_icon": "webrobots_logo.png"
   },
 
   "background": {
@@ -37,10 +36,10 @@
   },
 
   "icons": {
-    "16": "pokeball16.png",
-    "32": "pokeball32.png",
-    "64": "pokeball64.png",
-    "128": "pokeball128.png"
+    "16": "webrobots_logo.png",
+    "32": "webrobots_logo.png",
+    "64": "webrobots_logo.png",
+    "128": "webrobots_logo.png"
   },
 
   "incognito": "split",

@@ -5,27 +5,23 @@
 (function () {
   'use strict';
 
+  // Get the target tab's ID from the URL. This is more reliable than
+  // querying for the "active" tab, which can be inconsistent.
+  const urlParams = new URLSearchParams(window.location.search);
+  const tabId = parseInt(urlParams.get('tabid'), 10);
+
   // -----------------------------
   // Helpers
   // -----------------------------
 
-  // Send a message to the active tab's content script
+  // Send a message to the target tab's content script
   function withActiveTab(cb) {
-    try {
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (chrome.runtime.lastError) {
-          console.warn('[IDS][popup] tabs.query error:', chrome.runtime.lastError.message);
-          return;
-        }
-        if (!tabs || !tabs[0]) {
-          console.warn('[IDS][popup] No active tab found.');
-          return;
-        }
-        cb(tabs[0]);
-      });
-    } catch (err) {
-      console.warn('[IDS][popup] withActiveTab exception:', err);
+    if (!tabId || isNaN(tabId)) {
+      console.warn('[IDS][popup] No valid tab ID was found in the URL.');
+      return;
     }
+    // The callback expects a 'tab' object, but only really needs the 'id' property for messaging.
+    cb({ id: tabId });
   }
 
   // Ask content script to cycle to the next detected table/list

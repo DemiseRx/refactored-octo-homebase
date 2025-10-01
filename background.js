@@ -1,3 +1,24 @@
-/*! InstantDataScraperNext - 2025-01-29 */
+// background.js - Instant Data Scraper
+// This script handles the extension's icon click event.
 
-chrome.action.onClicked.addListener(function(e){chrome.windows.getCurrent(function(e){parentWindowId=e.id}),chrome.windows.create({url:chrome.runtime.getURL("popup.html?tabid="+encodeURIComponent(e.id)+"&url="+encodeURIComponent(e.url)),type:"popup",width:720,height:650})});
+// Listen for a click on the browser action icon.
+chrome.action.onClicked.addListener(handleActionClick);
+
+/**
+ * Handles the click event on the extension's icon.
+ *
+ * @param {chrome.tabs.Tab} tab The tab that was active when the icon was clicked.
+ */
+function handleActionClick(tab) {
+  // When the icon is clicked, create a new popup window.
+  // We pass the active tab's ID and URL to the popup so it knows which page to scrape.
+  const popupUrl = chrome.runtime.getURL('popup.html');
+  const targetUrl = `${popupUrl}?tabid=${encodeURIComponent(tab.id)}&url=${encodeURIComponent(tab.url)}`;
+
+  chrome.windows.create({
+    url: targetUrl,
+    type: 'popup',
+    width: 720,
+    height: 650,
+  });
+}
