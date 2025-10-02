@@ -303,4 +303,9 @@
     return true; // Keep message channel open for async response
   });
 
+  // Signal to the background script that the content script is ready.
+  if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+    console.log('[IDS] Content script loaded and ready.');
+    chrome.runtime.sendMessage({ type: 'ids:content-script-ready' });
+  }
 })();
