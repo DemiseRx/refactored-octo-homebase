@@ -253,7 +253,9 @@
     const currentTarget = forcedTargetSelector ? document.querySelector(forcedTargetSelector) : (candidates[candidateIndex] || null);
     if (currentTarget) {
       const data = scrapeDataFromElement(currentTarget);
-      chrome.runtime.sendMessage({ type: 'ids:data-scraped', data });
+      if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+        chrome.runtime.sendMessage({ type: 'ids:data-scraped', data });
+      }
     }
 
     if (infiniteScroll) {
@@ -262,7 +264,9 @@
       nextButtonEl.click();
     } else {
       isCrawling = false;
-      chrome.runtime.sendMessage({ type: 'ids:crawling-finished' });
+      if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+        chrome.runtime.sendMessage({ type: 'ids:crawling-finished' });
+      }
       return;
     }
 
@@ -343,27 +347,21 @@
         break;
       }
       case 'ids:locate-next-button': {
-        console.log('[IDS] Locating "Next" button.');
         nextButtonEl = findNextButton();
         if (nextButtonEl) {
-          console.log('[IDS] "Next" button found:', nextButtonEl);
           raf(() => {
             highlightTarget(nextButtonEl);
             scrollIntoViewIfNeeded(nextButtonEl);
           });
-        } else {
-          console.log('[IDS] "Next" button not found.');
         }
         break;
       }
       case 'ids:start-crawling': {
-        console.log('[IDS] Starting crawl...');
         isCrawling = true;
         crawl(message.infiniteScroll);
         break;
       }
       case 'ids:stop-crawling': {
-        console.log('[IDS] Stopping crawl.');
         isCrawling = false;
         break;
       }
@@ -373,7 +371,6 @@
 
   // Signal to the background script that the content script is ready.
   if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
-    console.log('[IDS] Content script loaded and ready.');
     chrome.runtime.sendMessage({ type: 'ids:content-script-ready' });
   }
 })();
