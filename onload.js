@@ -12,6 +12,8 @@
   let candidateIndex = -1;
   let highlightEl = null;
   let lastPreviewed = null;
+  let nextButtonEl = null;
+  let isCrawling = false;
 
   // =========================
   // Utilities
@@ -197,6 +199,24 @@
     return bestNode;
   }
 
+  function findNextButton() {
+    const linkSelectors = 'a, button';
+    const nextText = ['next', 'more', '›', '»'];
+
+    const elements = document.querySelectorAll(linkSelectors);
+    for (const el of elements) {
+        if (isVisible(el)) {
+            const text = getText(el).toLowerCase();
+            for (const t of nextText) {
+                if (text.includes(t)) {
+                    return el;
+                }
+            }
+        }
+    }
+    return null;
+  }
+
   // =========================
   // Data Scraping
   // =========================
@@ -225,6 +245,29 @@
       });
     }
     return data;
+  }
+
+  async function crawl(infiniteScroll) {
+    if (!isCrawling) return;
+
+    const currentTarget = forcedTargetSelector ? document.querySelector(forcedTargetSelector) : (candidates[candidateIndex] || null);
+    if (currentTarget) {
+      const data = scrapeDataFromElement(currentTarget);
+      chrome.runtime.sendMessage({ type: 'ids:data-scraped', data });
+    }
+
+    if (infiniteScroll) {
+      window.scrollTo(0, document.body.scrollHeight);
+    } else if (nextButtonEl) {
+      nextButtonEl.click();
+    } else {
+      isCrawling = false;
+      chrome.runtime.sendMessage({ type: 'ids:crawling-finished' });
+      return;
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 2000 + Math.random() * 1000));
+    crawl(infiniteScroll);
   }
 
   // =========================
@@ -297,6 +340,31 @@
         } else {
           sendResponse({ data: [], selector: null });
         }
+        break;
+      }
+      case 'ids:locate-next-button': {
+        console.log('[IDS] Locating "Next" button.');
+        nextButtonEl = findNextButton();
+        if (nextButtonEl) {
+          console.log('[IDS] "Next" button found:', nextButtonEl);
+          raf(() => {
+            highlightTarget(nextButtonEl);
+            scrollIntoViewIfNeeded(nextButtonEl);
+          });
+        } else {
+          console.log('[IDS] "Next" button not found.');
+        }
+        break;
+      }
+      case 'ids:start-crawling': {
+        console.log('[IDS] Starting crawl...');
+        isCrawling = true;
+        crawl(message.infiniteScroll);
+        break;
+      }
+      case 'ids:stop-crawling': {
+        console.log('[IDS] Stopping crawl.');
+        isCrawling = false;
         break;
       }
     }

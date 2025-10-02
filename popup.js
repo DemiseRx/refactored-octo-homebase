@@ -6,6 +6,7 @@
   const urlParams = new URLSearchParams(window.location.search);
   const tabId = parseInt(urlParams.get('tabid'), 10);
   let hot; // This will hold the Handsontable instance.
+  let isCrawling = false;
 
   // =========================
   // Helpers
@@ -48,6 +49,10 @@
   document.addEventListener('DOMContentLoaded', () => {
     const searchInput = document.getElementById('ids-search');
     const tryAnotherBtn = document.getElementById('try-another-table-btn');
+    const nextButton = document.getElementById('nextButton');
+    const startScrapingBtn = document.getElementById('startScraping');
+    const stopScrapingBtn = document.getElementById('stopScraping');
+    const infiniteScrollCheckbox = document.getElementById('infinateScroll');
     const hotElement = document.getElementById('hot');
 
     // Initialize Handsontable
@@ -111,6 +116,58 @@
         });
       });
     }
+
+    if (nextButton) {
+      nextButton.addEventListener('click', () => {
+        console.log('[IDS] "Locate Next button" clicked.');
+        withActiveTab((tab) => {
+          chrome.tabs.sendMessage(tab.id, { type: 'ids:locate-next-button' });
+        });
+      });
+    }
+
+    function setCrawlingState(crawling) {
+      isCrawling = crawling;
+      startScrapingBtn.disabled = crawling;
+      stopScrapingBtn.disabled = !crawling;
+      nextButton.disabled = crawling;
+      tryAnotherBtn.disabled = crawling;
+      infiniteScrollCheckbox.disabled = crawling;
+    }
+
+    if (startScrapingBtn) {
+      startScrapingBtn.addEventListener('click', () => {
+        console.log('[IDS] "Start crawling" clicked.');
+        setCrawlingState(true);
+        withActiveTab((tab) => {
+          chrome.tabs.sendMessage(tab.id, {
+            type: 'ids:start-crawling',
+            infiniteScroll: infiniteScrollCheckbox.checked,
+          });
+        });
+      });
+    }
+
+    if (stopScrapingBtn) {
+      stopScrapingBtn.addEventListener('click', () => {
+        console.log('[IDS] "Stop crawling" clicked.');
+        setCrawlingState(false);
+        withActiveTab((tab) => {
+          chrome.tabs.sendMessage(tab.id, { type: 'ids:stop-crawling' });
+        });
+      });
+    }
+
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      if (message.type === 'ids:data-scraped') {
+        console.log('[IDS] Received scraped data:', message.data);
+        const currentData = hot.getData();
+        hot.loadData(currentData.concat(message.data));
+      } else if (message.type === 'ids:crawling-finished') {
+        console.log('[IDS] Crawling finished.');
+        setCrawlingState(false);
+      }
+    });
 
     // Handshake with content script
     function initiateHandshakeWithRetry(attempts = 0) {
