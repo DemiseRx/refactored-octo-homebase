@@ -201,4 +201,111 @@
   function findBestNodeByText(query) {
     if (!query || !query.trim()) return null;
 
-    // TreeWa
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    const scoredNodes = [];
+    while (walker.nextNode()) {
+      const node = walker.currentNode;
+      const parent = node.parentElement;
+      if (!parent || !isVisible(parent)) continue;
+
+      const score = scoreTextMatch(getText(node), query);
+      if (score > 0) {
+        scoredNodes.push({ node: parent, score });
+      }
+    }
+
+    if (!scoredNodes.length) return null;
+    scoredNodes.sort((a, b) => b.score - a.score);
+    return scoredNodes[0].node;
+  }
+
+  // =========================
+  // Core logic
+  // =========================
+  function previewCandidate(el) {
+    if (!isElement(el)) {
+      hideHighlight();
+      lastPreviewed = null;
+      return;
+    }
+    scrollIntoViewIfNeeded(el);
+    highlightTarget(el);
+    lastPreviewed = el;
+    // This is where you would typically send data to the popup for preview
+  }
+
+  function cycleNext() {
+    if (!candidates.length) {
+      candidates = collectCandidates();
+      candidateIndex = -1;
+    }
+    candidateIndex = (candidateIndex + 1) % candidates.length;
+    const nextEl = candidates[candidateIndex];
+    previewCandidate(nextEl);
+  }
+
+  function setForcedTarget(selector) {
+    forcedTargetSelector = selector;
+    try {
+      const el = document.querySelector(selector);
+      if (el) {
+        previewCandidate(el);
+      } else {
+        hideHighlight();
+        lastPreviewed = null;
+      }
+    } catch (e) {
+      console.warn('[IDS] Invalid selector:', selector);
+      hideHighlight();
+      lastPreviewed = null;
+    }
+  }
+
+  // =========================
+  // Message listeners
+  // =========================
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    switch (message.type) {
+      case 'ids:cycle-next-table':
+        cycleNext();
+        sendResponse({ status: 'ok' });
+        break;
+
+      case 'ids:find-node-by-text':
+        const foundNode = findBestNodeByText(message.query);
+        if (foundNode) {
+          const container = nearestContainer(foundNode);
+          const selector = uniqueSelector(container);
+          sendResponse({ selector });
+        } else {
+          sendResponse({ selector: null });
+        }
+        break;
+
+      case 'ids:set-target-selector':
+        setForcedTarget(message.selector);
+        sendResponse({ status: 'ok' });
+        break;
+
+      case 'ids:refresh-preview':
+        const target = forcedTargetSelector ? document.querySelector(forcedTargetSelector) : (candidates[candidateIndex] || null);
+        if (target) {
+          previewCandidate(target);
+        }
+        sendResponse({ status: 'ok' });
+        break;
+    }
+    // Keep message channel open for async responses
+    return true;
+  });
+
+  // Initial state
+  candidates = collectCandidates();
+  if (candidates.length > 0) {
+    candidateIndex = 0;
+    previewCandidate(candidates[0]);
+  }
+
+  // Signal to the background script that the content script is ready.
+  chrome.runtime.sendMessage({ type: 'ids:content-script-ready' });
+})();
