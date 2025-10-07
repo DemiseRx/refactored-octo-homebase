@@ -1,0 +1,16 @@
+{
+  "name": "KaniTTS Local TTS",
+  "version": "1.0.0",
+  "description": "Run the KaniTTS-based automatic/manual TTS service with a single click.",
+  "scripts": {
+    "Install dependencies": {
+      "cmd": ["bash", "pinokio_api/install.sh"],
+      "cwd": "."
+    },
+    "Start service": {
+      "cmd": ["bash", "pinokio_api/start.sh"],
+      "cwd": ".",
+      "autostart": true
+    }
+  }
+}
