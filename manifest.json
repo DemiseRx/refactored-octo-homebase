@@ -1,0 +1,52 @@
+{
+  "manifest_version": 3,
+  "name": "Instant Data Scraper",
+  "version": "1.2.1",
+  "description": "Instant Data Scraper extracts data from web pages and exports it as Excel or CSV files",
+
+  "action": {
+    "default_icon": "pokeball64.png",
+    "default_popup": "popup.html"
+  },
+
+  "background": {
+    "service_worker": "background.js"
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["*://*/*"],
+      "css": ["onload.css"],
+      "js": ["js/jquery-3.1.1.min.js", "js/sha256.min.js", "onload.js"],
+      "run_at": "document_idle"
+    }
+  ],
+
+  "permissions": [
+    "webRequest",
+    "activeTab",
+    "storage"
+  ],
+
+  "host_permissions": [
+    "<all_urls>"
+  ],
+
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  },
+
+  "icons": {
+    "16": "pokeball16.png",
+    "32": "pokeball32.png",
+    "64": "pokeball64.png",
+    "128": "pokeball128.png"
+  },
+
+  "incognito": "split",
+  "update_url": "https://clients2.google.com/service/update2/crx",
+
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqJGGRgcNKZpQRZ4l4mbtQLvF/58wwR45S66fXKkQ7SicdP0Xt/PG3WrKTzsYER334TqsWGYb5NYXu1TmkG6rL+1YMedVqxoWGgeYSuqo5/0vEiZu5GNpCA6P7OrVM9vpG3PKgABUXBXg5Z+Z5lswMR33UhRyNKx6lFlckz18TxRmvQsXXScCDG/FcEtTtJnJabEBogtqqVy9G5mwUERVnNeDzjmntPWIHvQE/FNft9XcUQMvDuI7yBs5UfHb5XI2uquTXSDofJHrHTW2estOalW8feRHa7T60+V84y+pQT+46hfLTgOVhxQxoLBrHDVnk3VKFXph3lI2flErhmOBbQIDAQAB",
+
+  "differential_fingerprint": "1.c5d3e324342daa501bbe6d0dfc9c34404e9f1d890d232c1a804217fe9744be1a"
+}
