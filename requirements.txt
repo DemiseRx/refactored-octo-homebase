@@ -1,5 +1,8 @@
-PySide6
-python-docx
-PyInstaller
-pydub
-requests
+beautifulsoup4>=4.11
+ebooklib>=0.18
+fastapi>=0.110
+gradio>=4.0
+numpy>=1.23
+python-docx>=0.8.11
+soundfile>=0.12
+uvicorn[standard]>=0.27
