@@ -48,17 +48,32 @@ def _split_overlong_sentence(
         return []
     fragment: List[str] = []
     for word in words:
-        fragment.append(word)
+        candidate = fragment + [word]
         token_count = len(
             tokenizer(
-                " ".join(fragment),
+                " ".join(candidate),
                 add_special_tokens=False,
                 return_attention_mask=False,
             )["input_ids"]
         )
-        if token_count >= max_tokens:
+        if fragment and token_count > max_tokens:
             yield " ".join(fragment)
-            fragment = []
+            fragment = [word]
+            token_count = len(
+                tokenizer(
+                    word,
+                    add_special_tokens=False,
+                    return_attention_mask=False,
+                )["input_ids"]
+            )
+            if token_count > max_tokens:
+                yield word
+                fragment = []
+        else:
+            fragment = candidate
+            if token_count >= max_tokens:
+                yield " ".join(fragment)
+                fragment = []
     if fragment:
         yield " ".join(fragment)
 
